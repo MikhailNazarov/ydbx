@@ -17,8 +17,8 @@ let ydb: Ydb = Ydb::connect(connection_string).await
 ## Execute schema queries
 
 ```rust
-ydb
-        .query(r#"
+    
+    ydb.query(r#"
             CREATE TABLE test (
                 id Uint64 NOT NULL,
                 name Utf8,
@@ -33,9 +33,9 @@ ydb
 
 ## Checklist
 
-- [ ] Connect to ydb
-- [ ] Default credentials (using fromEnv)
-- [ ] Custom credentials with options
+- [x] Connect to ydb
+- [x] Default credentials (using fromEnv)
+- [x] Custom credentials with options
 - [ ] Basic query
 - [ ] Binding parameters
 - Support types
