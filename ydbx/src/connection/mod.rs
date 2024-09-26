@@ -17,28 +17,37 @@ use ydb::{AccessTokenCredentials, AnonymousCredentials, MetadataUrlCredentials, 
 use ydb::Credentials;
 
 #[allow(unused)]
-pub struct YdbConnection{
+pub struct Ydb{
     client: ydb::Client,
     pub(crate) transaction: Option<Box<dyn ydb::Transaction>>
 }
-impl fmt::Debug for YdbConnection {
+impl fmt::Debug for Ydb {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str("YdbConnection")
     }
 }
 
-impl Deref for YdbConnection {
+impl Deref for Ydb {
     type Target = ydb::Client;
     fn deref(&self) -> &Self::Target {
         &self.client
     }
 }
 
-impl YdbConnection{
+pub trait IntoOptions{
+    fn try_into(self)->Result<YdbConnectOptions, YdbxError>;
+}
+
+impl Ydb{
     // pub fn schema(&self)->YdbSchemaExecutor{
     //     YdbSchemaExecutor::new(self.client.table_client())
     // }
 
+    pub async fn connect(options: impl IntoOptions) -> Result<Ydb, YdbxError>{
+        let opts = options.try_into()?;
+        let connection = Ydb::establish(&opts).await?;
+        Ok(connection)
+    }
 
     pub async fn close(self) -> Result<(), YdbxError> {
         Ok(())
@@ -75,8 +84,7 @@ impl YdbConnection{
 pub struct YdbConnectOptions {
     connection_string: String,
     connection_timeout: Duration,
-    credentials: Option<Arc<Box<dyn Credentials>>>,
-    
+    credentials: Option<Arc<Box<dyn Credentials>>>,    
 }
 
 
@@ -85,12 +93,7 @@ impl YdbConnectOptions {
 
     pub fn from_url(url: &url::Url) -> Result<Self, YdbxError> {
         Self::from_str(url.as_str())
-    }
-
-    pub async fn connect(&self ) -> Result<YdbConnection, YdbxError>{
-        let connection = YdbConnection::establish(&self).await?;
-        Ok(connection)
-    }
+    }    
 
     pub fn log_statements(self, _level: tracing::log::LevelFilter) -> Self {
         todo!()
@@ -103,6 +106,47 @@ impl YdbConnectOptions {
     ) -> Self {
         todo!()
     }
+
+    pub fn conn_timeout(mut self, timeout: Duration)->Self{
+        self.connection_timeout = timeout;
+        self
+    }
+
+    pub fn sa_key(mut self, path: impl AsRef<std::path::Path>)->Result<Self, YdbxError>{
+        let sa = ServiceAccountCredentials::from_file(path)?;
+        self.credentials = Some(Arc::new(Box::new(sa)));
+        Ok(self)
+    }
+
+    pub fn anonymous(mut self)->Self{
+        let cred = AnonymousCredentials::new();
+        self.credentials = Some(Arc::new(Box::new(cred)));
+        self
+    }
+
+    pub fn metadata(mut self)->Self{
+        let cred = MetadataUrlCredentials::new();
+        self.credentials = Some(Arc::new(Box::new(cred)));
+        self
+    }
+}
+
+impl IntoOptions for String{
+    fn try_into(self)->Result<YdbConnectOptions, YdbxError> {
+        YdbConnectOptions::from_str(&self)
+    }
+}
+
+impl IntoOptions for YdbConnectOptions{
+    fn try_into(self)->Result<YdbConnectOptions, YdbxError> {
+        Ok(self)
+    }
+}
+
+impl IntoOptions for &str {        
+    fn try_into(self)->Result<YdbConnectOptions, YdbxError> {        
+        YdbConnectOptions::from_str(self)
+    }    
 }
 
 
@@ -116,26 +160,23 @@ impl FromStr for YdbConnectOptions {
         let url = Url::parse(s)?;
         let mut user = None;
         let mut password = None;
-        let mut database = None; 
+        let mut database = None;
 
         for (k,v) in url.query_pairs(){
             match k.as_ref(){
                
-                "connection_timeout" => {
-                    let timeout = v.parse::<u64>()?;
-                    options.connection_timeout = Duration::from_secs(timeout);
+                "connection_timeout" => {                    
+                    options = options.conn_timeout(Duration::from_secs(v.parse::<u64>()?));
                 },
                 "sa-key" => {
-                    let sa = ServiceAccountCredentials::from_file(v.as_ref())?;
-                    options.credentials = Some(Arc::new(Box::new(sa)));
+                    options = options.sa_key(v.as_ref())?;
                 },
                 "anonymous" =>{
-                    let cred = AnonymousCredentials::new();
-                    options.credentials = Some(Arc::new(Box::new(cred)));
+                    options = options.anonymous();
+                    
                 },
-                "metadata" =>{
-                    let cred = MetadataUrlCredentials::new();
-                    options.credentials = Some(Arc::new(Box::new(cred)));
+                "metadata" =>{                    
+                    options = options.metadata();
                 }
                 "token" =>{
                     let cred = AccessTokenCredentials::from(v.as_ref());
@@ -169,8 +210,8 @@ impl FromStr for YdbConnectOptions {
 
 }
 
-impl AsMut<YdbConnection> for YdbConnection {
-    fn as_mut(&mut self) -> &mut YdbConnection {
+impl AsMut<Ydb> for Ydb {
+    fn as_mut(&mut self) -> &mut Ydb {
         self
     }
 }

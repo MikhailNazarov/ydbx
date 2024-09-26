@@ -6,9 +6,9 @@ use ydb::AnonymousCredentials;
 
 use crate::error::YdbxError;
 
-use super::{YdbConnectOptions, YdbConnection};
+use super::{YdbConnectOptions, Ydb};
 
-impl YdbConnection {
+impl Ydb {
     pub(crate) async fn establish(options: &YdbConnectOptions) -> Result<Self, YdbxError> {
         let builder =
             ydb::ClientBuilder::new_from_connection_string(options.connection_string.clone())?
@@ -19,6 +19,6 @@ impl YdbConnection {
         timeout(options.connection_timeout, client.wait()).await??;
        
        
-        Ok(YdbConnection { client, transaction: None })
+        Ok(Ydb { client, transaction: None })
     }
 }

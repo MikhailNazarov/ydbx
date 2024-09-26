@@ -11,3 +11,5 @@ pub mod error;
 //pub mod typeinfo;
 //pub mod types;
 //pub mod value;
+
+pub use connection::Ydb;
