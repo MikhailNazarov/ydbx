@@ -1,0 +1,23 @@
+[package]
+name = "ydbx"
+version = "0.1.0"
+edition = "2021"
+authors = ["mikhail <mikhail.a.nazarov@yandex.ru>"]
+license = "Apache-2.0"
+repository = "https://github.com/MikhailNazarov/ydbx"
+rust-version = "1.77"
+description = "Experimental ydb rust library"
+
+[dependencies]
+thiserror = "1"
+async-trait = "0.1"
+futures-util = "0.3"
+itertools = "0.13"
+tracing = "0.1"
+ydb = { git = "https://github.com/MikhailNazarov/ydb-rs-sdk.git", rev = "11c41c5d00534271896452c8aeb966d644ccd829" }
+url = "2.2"
+futures-core = "0.3"
+futures = "0.3"
+rustring_builder = "0.2"
+http = "1.1"
+chrono = "0.4"
