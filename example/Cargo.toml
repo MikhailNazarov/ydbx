@@ -7,6 +7,8 @@ edition = "2021"
 
 [dependencies]
 tokio = { version = "1.22", features = ["full"] }
-tracing-subscriber = "0.3"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 tracing = "0.1"
 ydbx = { path = "../ydbx" }
+serde = { version = "1.0", features = ["derive"] }
+dotenvy = "0.15"

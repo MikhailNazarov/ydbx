@@ -1,5 +1,5 @@
 mod connection_impl;
-//mod executor;
+mod executor;
 //pub mod schema_executor;
 
 use std::fmt;
@@ -7,6 +7,7 @@ use std::ops::Deref;
 use std::{str::FromStr, sync::Arc, time::Duration};
 
 use crate::error::YdbxError;
+use crate::query::{YdbCreateTableQuery, YdbQuery};
 
 //use self::schema_executor::YdbSchemaExecutor;
 
@@ -42,6 +43,14 @@ impl Ydb{
     // pub fn schema(&self)->YdbSchemaExecutor{
     //     YdbSchemaExecutor::new(self.client.table_client())
     // }
+
+    pub fn query(&self, s: impl AsRef<str>)->YdbQuery{
+        YdbQuery::new(self, s)
+    }
+
+    pub fn create(&self, table_name: impl AsRef<str>)->YdbCreateTableQuery{
+        YdbCreateTableQuery::new(self, table_name)
+    }
 
     pub async fn connect(options: impl IntoOptions) -> Result<Ydb, YdbxError>{
         let opts = options.try_into()?;

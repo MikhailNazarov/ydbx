@@ -1,25 +1,49 @@
-use std::{env, str::FromStr};
+use std::env;
 
-use tracing::Level;
-use ydbx::connection::Ydb;
+use serde::{Deserialize, Serialize};
+use tracing::error;
+use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
+use ydbx::{connection::Ydb, error::YdbxError};
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+async fn main() -> Result<(), YdbxError> {
+    dotenvy::dotenv().ok();
     init_logs();
 
-    let connection_string = env::var("YDB_CONNECTION_STRING").unwrap_or_else(|_| "grpc://localhost:2136?database=/local".to_string());
-    let ydb: Ydb = Ydb::connect(connection_string).await.expect("Error connecting to YDB");
+    if let Err(e) = run().await{
+        error!("{:?}",e);
+    }
 
-    
+    Ok(())
+}
 
-    // let pool = YdbPoolOptions::new()
-    //     .connect(&connection_string).await?;
-    // let row: (i32,) = sqlx::query_as("SELECT 1+1").fetch_one(&pool).await?;
-    // assert_eq!(row.0, 2);
+async fn run()->Result<(), YdbxError>{
+    let connection_string = env::var("YDB_CONNECTION_STRING")
+        .unwrap_or_else(|_| "grpc://localhost:2136?database=/local".to_string());
+    let ydb: Ydb = Ydb::connect(connection_string).await
+        .expect("Error connecting to YDB");
 
-    // let conn = pool.acquire().await?;
-    // sqlx::query("CREATE TABLE test2 (id Uint64 NOT NULL, name Utf8, age UInt32 NOT NULL, description Utf8, PRIMARY KEY (id))")
-    //     .execute(conn.schema())
+    // ydb
+    //     .query("SELECT 1+1")
+    //     .fetch_one()
+    //     .await?;
+
+    ydb
+        .query(r#"
+            CREATE TABLE test (
+                id Uint64 NOT NULL,
+                name Utf8,
+                age UInt32 NOT NULL,
+                description Utf8,
+                PRIMARY KEY (id)
+            );
+        "#)
+        .schema_execute()
+        .await?;
+
+    // ydb
+    //     .create("test2")
+    //     .schema_execute()
     //     .await?;
 
     // let test_user_info = UserInfo {
@@ -29,44 +53,50 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     //     description: None
     // };
 
-    
-
-
-    // sqlx::query("INSERT INTO test2 (id, name, age, description) VALUES ( $arg_1, $arg_2, $age, $arg_3)")
+    // ydb
+    //     .query(
+    //         r#"
+    //             INSERT INTO test2 (id, name, age, description) 
+    //             VALUES ( $arg_1, $arg_2, $age, $arg_3)
+    //         "#)
     //     .bind(test_user_info.id)
     //     .bind(test_user_info.name)
-    //     .bind(with_name("age", test_user_info.age))
+    //     .bind_named("age", test_user_info.age)
     //     .bind(test_user_info.description)
-    //     .execute(&pool)
+    //     .execute()
     //     .await?;
 
     // let users: Vec<UserInfo> =
-    //     sqlx::query_as("SELECT * FROM test2 WHERE age > $age AND age < $arg_1")
-    //         .bind(with_name("age", 30))
+    //     ydb
+    //         .query(
+    //         r#"
+    //             SELECT * FROM test2 WHERE age > $age AND age < $arg_1
+    //         "#)
+    //         .bind_named("age", 30)
     //         .bind(40)
-    //         .fetch_all(&pool)
+    //         .fetch_all()
     //         .await?;
 
     // assert!(users.len() > 0);
     // info!("users found: {}", users.len());
 
+
+
     Ok(())
 }
 
-// #[allow(unused)]
-// #[derive(sqlx::FromRow)]
-// struct UserInfo {
-//     id: u64,
-//     name: String,
-//     age: u32,
-//     description: Option<String>,
-// }
 
-fn init_logs() {
-    let level = env::var("RUST_LOG").unwrap_or("INFO".to_string());
-    let log_level = Level::from_str(&level).unwrap();
-    let subscriber = tracing_subscriber::FmtSubscriber::builder()
-        .with_max_level(log_level)
-        .finish();
-    tracing::subscriber::set_global_default(subscriber).expect("Error setting subscriber");
+#[derive(Serialize, Deserialize)]
+struct UserInfo {
+    id: u64,
+    name: String,
+    age: u32,
+    description: Option<String>,
+}
+
+pub fn init_logs() {
+    tracing_subscriber::registry()
+        .with(fmt::layer())
+        .with(EnvFilter::from_default_env())
+        .init();
 }

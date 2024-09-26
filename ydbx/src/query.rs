@@ -1,18 +1,47 @@
-#[derive(Default)]
-pub struct YdbQueryResult {
-    pub(crate) rows_affected: u64,
+use rustring_builder::StringBuilder;
+
+use crate::{error::YdbxError, Ydb};
+
+pub struct YdbQuery<'q> {
+    ydb: &'q Ydb,
+    query: StringBuilder,
 }
 
-impl YdbQueryResult {
-    pub fn rows_affected(&self) -> u64 {
-        self.rows_affected
+impl<'q> YdbQuery<'q> {
+    pub(crate) fn new(ydb: &'q Ydb, init: impl AsRef<str>) -> Self {
+        Self {
+            ydb,
+            query: StringBuilder::new_with_value(init.as_ref()),
+        }
+    }
+
+    pub async fn schema_execute(self)->Result<(), YdbxError>{
+        self.ydb
+            .execute_schema_query(self.query.to_string())
+            .await?;
+        Ok(())
     }
 }
 
-impl Extend<YdbQueryResult> for YdbQueryResult {
-    fn extend<T: IntoIterator<Item = YdbQueryResult>>(&mut self, iter: T) {
-        for elem in iter {
-            self.rows_affected += elem.rows_affected;
+
+pub struct YdbCreateTableQuery<'q>{
+    ydb: &'q Ydb,
+    query: StringBuilder
+}
+
+impl<'q> YdbCreateTableQuery<'q>{
+    pub(crate) fn new(ydb: &'q Ydb, table: impl AsRef<str>) -> Self {
+        Self {
+            ydb,
+            query: StringBuilder::new_with_value(format!("CREATE TABLE \"{}\" (",table.as_ref())),
         }
+    }
+
+    pub async fn schema_execute(mut self)->Result<(), YdbxError>{
+        self.query.append(" )");
+        self.ydb
+            .execute_schema_query(self.query.to_string())
+            .await?;
+        Ok(())
     }
 }
