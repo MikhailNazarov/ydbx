@@ -129,6 +129,13 @@ impl YdbConnectOptions {
         self.credentials = Some(Arc::new(Box::new(cred)));
         self
     }
+
+    pub fn token(mut self, token: impl AsRef<str>)->Self{
+        let cred = AccessTokenCredentials::from(token.as_ref());
+        self.credentials = Some(Arc::new(Box::new(cred)));
+        self
+    }
+
 }
 
 impl IntoOptions for String{
@@ -179,8 +186,7 @@ impl FromStr for YdbConnectOptions {
                     options = options.metadata();
                 }
                 "token" =>{
-                    let cred = AccessTokenCredentials::from(v.as_ref());
-                    options.credentials = Some(Arc::new(Box::new(cred)));
+                    options = options.token(v.as_ref());
                 },
                 "database" =>{
                     database = Some(v.to_owned());
