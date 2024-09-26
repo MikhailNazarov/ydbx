@@ -1,19 +1,18 @@
 mod connection_impl;
-mod executor;
-pub mod schema_executor;
+//mod executor;
+//pub mod schema_executor;
 
 use std::fmt;
 use std::ops::Deref;
 use std::{str::FromStr, sync::Arc, time::Duration};
 
-use self::schema_executor::YdbSchemaExecutor;
+use crate::error::YdbxError;
 
-use super::database::Ydb;
-use futures_util::future;
-use sqlx_core::connection::{ConnectOptions, Connection};
+//use self::schema_executor::YdbSchemaExecutor;
 
 
-use sqlx_core::transaction::Transaction;
+
+use url::Url;
 use ydb::{AccessTokenCredentials, AnonymousCredentials, MetadataUrlCredentials, ServiceAccountCredentials, StaticCredentials};
 use ydb::Credentials;
 
@@ -36,26 +35,17 @@ impl Deref for YdbConnection {
 }
 
 impl YdbConnection{
-    pub fn schema(&self)->YdbSchemaExecutor{
-        YdbSchemaExecutor::new(self.client.table_client())
-    }
-}
+    // pub fn schema(&self)->YdbSchemaExecutor{
+    //     YdbSchemaExecutor::new(self.client.table_client())
+    // }
 
 
-impl Connection for YdbConnection {
-    type Database = Ydb;
-
-    type Options = YdbConnectOptions;
-
-    fn close(self) -> futures_util::future::BoxFuture<'static, Result<(), sqlx_core::Error>> {
-        Box::pin(future::ready(Ok(())))
+    pub async fn close(self) -> Result<(), YdbxError> {
+        Ok(())
     }
 
-    fn close_hard(self) -> futures_util::future::BoxFuture<'static, Result<(), sqlx_core::Error>> {
-        Box::pin(future::ready(Ok(())))
-    }
 
-    fn ping(&mut self) -> futures_util::future::BoxFuture<'_, Result<(), sqlx_core::Error>> {
+    pub async fn ping(&mut self) -> Result<(), YdbxError> {
         
         //todo: validate connection
         // Box::pin(async{
@@ -63,30 +53,21 @@ impl Connection for YdbConnection {
         //     .map_err(|_|sqlx_core::error::Error::PoolClosed)
             
         // })
-        Box::pin(future::ready(Ok(())))
+        Ok(())
     }
 
-    fn begin(
-        &mut self,
-    ) -> futures_util::future::BoxFuture<
-        '_,
-        Result<sqlx_core::transaction::Transaction<'_, Self::Database>, sqlx_core::Error>,
-    >
-    where
-        Self: Sized,
-    {
-        Transaction::begin(self)
-    }
+    // fn begin(
+    //     &mut self,
+    // ) -> futures_util::future::BoxFuture<
+    //     '_,
+    //     Result<sqlx_core::transaction::Transaction<'_, Self::Database>, sqlx_core::Error>,
+    // >
+    // where
+    //     Self: Sized,
+    // {
+    //     Transaction::begin(self)
+    // }
 
-    fn shrink_buffers(&mut self) {}
-
-    fn flush(&mut self) -> futures_util::future::BoxFuture<'_, Result<(), sqlx_core::Error>> {
-        Box::pin(future::ready(Ok(())))
-    }
-
-    fn should_flush(&self) -> bool {
-        false
-    }
 }
 
 #[allow(unused)]
@@ -100,30 +81,22 @@ pub struct YdbConnectOptions {
 
 
 
-impl ConnectOptions for YdbConnectOptions {
-    type Connection = YdbConnection;
+impl YdbConnectOptions {
 
-    fn from_url(url: &url::Url) -> Result<Self, sqlx_core::Error> {
+    pub fn from_url(url: &url::Url) -> Result<Self, YdbxError> {
         Self::from_str(url.as_str())
     }
 
-    fn connect(
-        &self,
-    ) -> futures_util::future::BoxFuture<'_, Result<Self::Connection, sqlx_core::Error>>
-    where
-        Self::Connection: Sized,
-    {
-        Box::pin(async move {
-            let connection = YdbConnection::establish(&self).await?;
-            Ok(connection)
-        })
+    pub async fn connect(&self ) -> Result<YdbConnection, YdbxError>{
+        let connection = YdbConnection::establish(&self).await?;
+        Ok(connection)
     }
 
-    fn log_statements(self, _level: tracing::log::LevelFilter) -> Self {
+    pub fn log_statements(self, _level: tracing::log::LevelFilter) -> Self {
         todo!()
     }
 
-    fn log_slow_statements(
+    pub fn log_slow_statements(
         self,
         _level: tracing::log::LevelFilter,
         _duration: std::time::Duration,
@@ -134,14 +107,13 @@ impl ConnectOptions for YdbConnectOptions {
 
 
 impl FromStr for YdbConnectOptions {
-    type Err = sqlx_core::Error;
+    type Err = YdbxError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let mut options = Self::default();
         options.connection_timeout = Duration::from_secs(2);
         
-        let url = sqlx_core::url::Url::parse(s)
-            .map_err(|e| sqlx_core::Error::Configuration(e.into()))?;
+        let url = Url::parse(s)?;
         let mut user = None;
         let mut password = None;
         let mut database = None; 
@@ -150,12 +122,11 @@ impl FromStr for YdbConnectOptions {
             match k.as_ref(){
                
                 "connection_timeout" => {
-                    let timeout = v.parse::<u64>().map_err(|e| sqlx_core::Error::Configuration(e.into()))?;
+                    let timeout = v.parse::<u64>()?;
                     options.connection_timeout = Duration::from_secs(timeout);
                 },
                 "sa-key" => {
-                    let sa = ServiceAccountCredentials::from_file(v.as_ref())
-                        .map_err(|e| sqlx_core::Error::Configuration(e.into()))?;
+                    let sa = ServiceAccountCredentials::from_file(v.as_ref())?;
                     options.credentials = Some(Arc::new(Box::new(sa)));
                 },
                 "anonymous" =>{

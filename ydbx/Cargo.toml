@@ -9,6 +9,7 @@ rust-version = "1.77"
 description = "Experimental ydb rust library"
 
 [dependencies]
+tokio = { version = "1" }
 thiserror = "1"
 async-trait = "0.1"
 futures-util = "0.3"
@@ -19,5 +20,5 @@ url = "2.2"
 futures-core = "0.3"
 futures = "0.3"
 rustring_builder = "0.2"
-http = "1.1"
+http = "0.2"
 chrono = "0.4"
