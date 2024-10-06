@@ -15,10 +15,10 @@ async-trait = "0.1"
 futures-util = "0.3"
 itertools = "0.13"
 tracing = "0.1"
-ydb = { git = "https://github.com/MikhailNazarov/ydb-rs-sdk.git", rev = "11c41c5d00534271896452c8aeb966d644ccd829" }
 url = "2.2"
 futures-core = "0.3"
 futures = "0.3"
 rustring_builder = "0.2"
-http = "0.2"
 chrono = "0.4"
+ydbx-grpc = { path = "../ydbx-grpc" }
+tonic = "0.12.3"

@@ -1,14 +1,8 @@
 use thiserror::Error;
 use tracing::error;
-use ydb::{YdbError, YdbOrCustomerError};
 
 #[derive(Error, Debug)]
 pub enum YdbxError {
-    #[error(transparent)]
-    YdbError(#[from] YdbError),
-    #[error(transparent)]
-    YdbOrCustomerError(#[from] YdbOrCustomerError),
-
     #[error(transparent)]
     TimeoutError(#[from] tokio::time::error::Elapsed),
 
@@ -17,4 +11,10 @@ pub enum YdbxError {
 
     #[error(transparent)]
     IntParseError(#[from] std::num::ParseIntError),
+
+    #[error("Connection error: {0}")]
+    ConnectionError(String),
+
+    #[error("Session error: {0}")]
+    SessionError(String),
 }
